@@ -13,7 +13,9 @@ import com.abbas.idlibrary.utils.DefaultDispatcherProvider
 import com.abbas.idlibrary.utils.Either
 import com.abbas.idlibrary.utils.IDError
 import com.abbas.idlibrary.utils.TestDispatcherProvider
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert
@@ -27,6 +29,7 @@ import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.stub
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class IdVerificationImplTest {
 
     private val mockCameraService: CameraService = mock()
@@ -39,7 +42,6 @@ class IdVerificationImplTest {
     private val mockBitmap: Bitmap = mock()
 
     private lateinit var idVerification: IdVerificationImpl
-    private lateinit var idVerificationForTakePhoto: IdVerificationImpl
 
     private var biometricManagerMockedStatic: MockedStatic<BiometricManager>? = null
 
@@ -58,15 +60,6 @@ class IdVerificationImplTest {
             authService = mockAuthenticationService,
             cameraPermissionObserver = mockCameraPermissionObserver,
             dispatcherProvider = dispatcherProvider,
-            lifecycleOwner = mockLifecycleOwner
-        )
-
-        idVerificationForTakePhoto = IdVerificationImpl(
-            cameraService = mockCameraService,
-            accessService = mockPhotoAccessService,
-            authService = mockAuthenticationService,
-            cameraPermissionObserver = mockCameraPermissionObserver,
-            dispatcherProvider = DefaultDispatcherProvider(),
             lifecycleOwner = mockLifecycleOwner
         )
     }
@@ -153,7 +146,7 @@ class IdVerificationImplTest {
     }
 
      @Test
-    fun `takePhoto captures and stores photo successfully when permissions are granted`() = runTest {
+    fun `takePhoto captures and stores photo successfully when permissions are granted`() = runTest(dispatcherProvider.default()) {
         // Arrange
         mockCameraPermissionObserver.stub {
             onBlocking { checkPermission() } doReturn true
@@ -166,11 +159,10 @@ class IdVerificationImplTest {
         mockPhotoAccessService.stub {
             onBlocking { saveImage(any(), any()) } doReturn true
         }
-
         // Act
-        val result = idVerificationForTakePhoto.takePhoto()
+        val result = idVerification.takePhoto()
 
-        // Assert
+         // Assert
         Assert.assertTrue(result is Either.Success<*>)
         Mockito.verify(mockCameraService, Mockito.times(1)).capturePhoto()
         Mockito.verify(mockPhotoAccessService, Mockito.times(1))
@@ -178,7 +170,7 @@ class IdVerificationImplTest {
     }
 
      @Test
-    fun `takePhoto returns Failure when photo capture fails`() = runTest {
+    fun `takePhoto returns Failure when photo capture fails`() = runTest(dispatcherProvider.default()) {
         // Arrange
         mockCameraPermissionObserver.stub {
             on { checkPermission() } doReturn true
@@ -188,7 +180,7 @@ class IdVerificationImplTest {
         }
 
         // Act
-        val result = idVerificationForTakePhoto.takePhoto()
+        val result = idVerification.takePhoto()
 
         // Assert
         Assert.assertEquals(Either.Failure(IDError.FailedInCapture), result)
@@ -198,7 +190,9 @@ class IdVerificationImplTest {
     }
 
     @Test
-    fun `takePhoto requests permissions and returns Failure when permissions are denied`() = runTest {
+    fun `takePhoto requests permissions and returns Failure when permissions are denied`() = runTest(
+        dispatcherProvider.default()
+    ) {
         // Arrange
         mockCameraPermissionObserver.stub {
             on { checkPermission() } doReturn false
@@ -206,13 +200,14 @@ class IdVerificationImplTest {
 
         mockCameraPermissionObserver.stub {
             on { launch() } doAnswer {
-                idVerificationForTakePhoto.permissionDenied()
+                idVerification.permissionDenied()
             }
         }
 
         var result: Either<Unit, IDError>? = null
         // Act
-        result = idVerificationForTakePhoto.takePhoto()
+        result = idVerification.takePhoto()
+        dispatcherProvider.default().scheduler.runCurrent()
         Mockito.verify(mockCameraService, Mockito.never()).capturePhoto()
         Mockito.verify(mockPhotoAccessService, Mockito.never()).saveImage(any<String>(), any<ByteArray>())
         // Assert

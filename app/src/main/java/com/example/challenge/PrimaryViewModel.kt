@@ -7,11 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abbas.idlibrary.IdVerification
 import com.abbas.idlibrary.utils.Either
-import com.abbas.idlibrary.utils.IDError
 import com.example.challenge.ui.UIState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import okhttp3.internal.cache.DiskLruCache.Snapshot
 import javax.inject.Inject
 
 @HiltViewModel

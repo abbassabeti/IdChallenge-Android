@@ -39,11 +39,11 @@ fun GalleryScreen(
         items(images) { bitmap ->
             Image(
                 bitmap = bitmap.asImageBitmap(),
-                contentDescription = null, // Provide a description if needed for accessibility
-                contentScale = ContentScale.Crop, // Adjust as per your requirement
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .aspectRatio(1f) // Makes each grid item square
-                    .padding(2.dp) // Optional padding around each image
+                    .aspectRatio(1f)
+                    .padding(2.dp)
             )
         }
     }
